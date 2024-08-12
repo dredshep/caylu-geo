@@ -30,8 +30,15 @@ const MapComponent: React.FC<MapComponentProps> = ({
   const drawRef = useRef<Draw | null>(null);
   const sourceRef = useRef(new VectorSource());
   const markerRef = useRef(new VectorSource());
+  const modeRef = useRef(mode); // Ref to store the current mode
+
+  // Update modeRef whenever mode changes
+  useEffect(() => {
+    modeRef.current = mode;
+  }, [mode]);
 
   useEffect(() => {
+    console.log("mode:", mode);
     if (!mapRef.current) {
       mapRef.current = setupMap("map", sourceRef, markerRef);
 
@@ -56,10 +63,17 @@ const MapComponent: React.FC<MapComponentProps> = ({
 
       // Set up click handler for placing markers
       mapRef.current.on("singleclick", (event) => {
-        if (mode === "marker") {
+        console.log(
+          "Map clicked at",
+          event.coordinate,
+          "mode:",
+          modeRef.current
+        ); // Use modeRef.current
+        if (modeRef.current === "marker") {
           const coordinate = event.coordinate;
           const lonLat = fromLonLat(coordinate) as Coordinate;
           const markerFeature = new Feature(new Point(coordinate));
+          console.log("Marker set at", lonLat);
 
           markerFeature.setStyle(
             new Style({
