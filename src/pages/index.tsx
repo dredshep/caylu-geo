@@ -2,32 +2,41 @@ import React, { useState } from "react";
 import MapComponent from "@/components/MapComponent";
 import PolygonControls from "@/components/PolygonControls";
 import MarkerInfo from "@/components/MarkerInfo";
-import ModeToggle from "@/components/ModeToggle"; // Import the ModeToggle component
+import ModeToggle from "@/components/ModeToggle";
 import { Coordinate } from "ol/coordinate";
 import { Area } from "@/types/Area";
+import PolygonTable from "@/components/PolygonTable";
 
 const Home: React.FC = () => {
   const [areas, setAreas] = useState<Area[]>([]);
   const [markerPosition, setMarkerPosition] = useState<Coordinate | null>(null);
   const [markerInside, setMarkerInside] = useState<boolean | null>(null);
   const [refreshMap, setRefreshMap] = useState(false);
-  const [mode, setMode] = useState<string>("browse"); // Manage the current mode
+  const [mode, setMode] = useState<string>("browse");
+
+  const generateUniqueId = () => {
+    return `Polygon_${new Date().getTime()}`;
+  };
 
   const saveCurrentArea = (coordinates: Coordinate[]) => {
-    // Save the polygon to areas state
-    const newArea = { id: areas.length + 1, coordinates };
-    setAreas([...areas, newArea]);
+    const newId = generateUniqueId();
+    const newArea: Area = { id: newId, coordinates };
+    setAreas((prevAreas) => [...prevAreas, newArea]);
   };
 
   const refreshPolygons = () => {
     setAreas([]);
     setRefreshMap(true);
-    setTimeout(() => setRefreshMap(false), 0); // Reset after refresh
+    setTimeout(() => setRefreshMap(false), 0);
   };
 
   const refreshMarker = () => {
     setMarkerPosition(null);
     setMarkerInside(null);
+  };
+
+  const removePolygon = (id: string) => {
+    setAreas((prevAreas) => prevAreas.filter((area) => area.id !== id));
   };
 
   return (
@@ -36,10 +45,9 @@ const Home: React.FC = () => {
         Customizable Polygons
       </h1>
       <div className="bg-gray-800 shadow-lg rounded-lg p-6 mb-6 w-full max-w-4xl">
-        <ModeToggle currentMode={mode} setMode={setMode} />{" "}
-        {/* Add ModeToggle */}
+        <ModeToggle currentMode={mode} setMode={setMode} />
         <MapComponent
-          mode={mode} // Pass the current mode to the MapComponent
+          mode={mode}
           onPolygonDrawn={saveCurrentArea}
           onMarkerSet={(position, inside) => {
             setMarkerPosition(position);
@@ -47,6 +55,11 @@ const Home: React.FC = () => {
           }}
           areas={areas}
           refreshMap={refreshMap}
+        />
+        <PolygonTable
+          markerPosition={markerPosition}
+          polygons={areas}
+          onRemovePolygon={removePolygon}
         />
         <MarkerInfo
           markerPosition={markerPosition}

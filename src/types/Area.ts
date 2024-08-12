@@ -1,5 +1,5 @@
 import { Coordinate } from "ol/coordinate";
 export interface Area {
-  id: number;
+  id: string;
   coordinates: Coordinate[];
 }
