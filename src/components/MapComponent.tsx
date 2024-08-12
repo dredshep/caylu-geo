@@ -1,23 +1,26 @@
-import React, { useEffect, useRef } from "react";
-import Map from "ol/Map";
-import Draw from "ol/interaction/Draw";
-import VectorSource from "ol/source/Vector";
-import { Feature } from "ol";
-import Polygon from "ol/geom/Polygon";
-import { fromLonLat } from "ol/proj";
-import { Coordinate } from "ol/coordinate";
-import { Point } from "ol/geom";
-import { Style, Icon, Circle, Fill, Stroke } from "ol/style";
-import { setupMap } from "@/utils/mapSetup";
+import React, { useCallback, useRef, useState } from "react";
+import { GoogleMap, LoadScript, Polygon, Marker } from "@react-google-maps/api";
+import { Coordinate } from "@/types/Coordinate";
 import { Area } from "@/types/Area";
+import { ExportedGoogle } from "@/types/global";
 
 interface MapComponentProps {
-  mode: string; // New prop for mode
+  mode: string;
   onPolygonDrawn: (coordinates: Coordinate[]) => void;
   onMarkerSet: (position: Coordinate, insidePolygon: boolean) => void;
   areas: Area[];
   refreshMap: boolean;
 }
+
+const containerStyle = {
+  width: "100%",
+  height: "400px",
+};
+
+const center = {
+  lat: 40.4168, // Default center (Madrid, Spain)
+  lng: -3.7038,
+};
 
 const MapComponent: React.FC<MapComponentProps> = ({
   mode,
@@ -26,91 +29,84 @@ const MapComponent: React.FC<MapComponentProps> = ({
   areas,
   refreshMap,
 }) => {
-  const mapRef = useRef<Map | null>(null);
-  const drawRef = useRef<Draw | null>(null);
-  const sourceRef = useRef(new VectorSource());
-  const markerRef = useRef(new VectorSource());
+  const mapRef = useRef<GoogleMap>(null);
+  const [drawing, setDrawing] = useState<boolean>(false);
+  const [paths, setPaths] = useState<Coordinate[]>([]);
 
-  useEffect(() => {
-    if (!mapRef.current) {
-      mapRef.current = setupMap("map", sourceRef, markerRef);
+  const handleMapClick = useCallback(
+    (event: google.maps.MapMouseEvent) => {
+      if (mode === "marker" && event.latLng) {
+        const position: Coordinate = {
+          lat: event.latLng.lat(),
+          lng: event.latLng.lng(),
+        };
+        const insidePolygon = areas.some((area) =>
+          google.maps.geometry.poly.containsLocation(
+            new google.maps.LatLng(position.lat, position.lng),
+            new google.maps.Polygon({ paths: area.coordinates })
+          )
+        );
+        onMarkerSet(position, insidePolygon);
+      }
+    },
+    [mode, areas, onMarkerSet]
+  );
 
-      // Initialize the drawing interaction for polygons
-      drawRef.current = new Draw({
-        source: sourceRef.current,
-        type: "Polygon",
-      });
-
-      // Add the draw interaction to the map
-      mapRef.current.addInteraction(drawRef.current);
-
-      // Handle polygon drawing
-      drawRef.current.on("drawend", (event) => {
-        const feature = event.feature;
-        const polygon = feature.getGeometry() as Polygon;
-        const coordinates = polygon
-          .getCoordinates()[0]
-          .map((coord) => fromLonLat(coord) as Coordinate);
-        onPolygonDrawn(coordinates); // Notify parent component of the new polygon
-      });
-
-      // Set up click handler for placing markers
-      mapRef.current.on("singleclick", (event) => {
-        if (mode === "marker") {
-          const coordinate = event.coordinate;
-          const lonLat = fromLonLat(coordinate) as Coordinate;
-          const markerFeature = new Feature(new Point(coordinate));
-
-          markerFeature.setStyle(
-            new Style({
-              image: new Circle({
-                radius: 7,
-                fill: new Fill({ color: "red" }),
-                stroke: new Stroke({
-                  color: "white",
-                  width: 2,
-                }),
-              }),
-            })
-          );
-
-          markerRef.current.clear(); // Clear previous markers
-          markerRef.current.addFeature(markerFeature);
-
-          // Check if the point is inside any polygon
-          const inside = areas.some((area) => {
-            const poly = new Polygon([
-              area.coordinates.map((coord) => fromLonLat(coord)),
-            ]);
-            return poly.intersectsCoordinate(coordinate);
-          });
-
-          onMarkerSet(lonLat, inside);
-        }
-      });
-    } else if (refreshMap) {
-      sourceRef.current.clear();
-      markerRef.current.clear();
-      areas.forEach((area) => {
-        const polygon = new Polygon([
-          area.coordinates.map((coord) => fromLonLat(coord)),
-        ]);
-        const feature = new Feature(polygon);
-        sourceRef.current.addFeature(feature);
-      });
-    }
-
-    // Manage interaction activation based on the mode
-    if (mapRef.current && drawRef.current) {
-      drawRef.current.setActive(mode === "draw");
-    }
-  }, [areas, refreshMap, mode, onPolygonDrawn, onMarkerSet]);
+  const handlePolygonComplete = (polygon: google.maps.Polygon) => {
+    const polygonPaths = polygon
+      .getPath()
+      .getArray()
+      .map((latLng) => ({ lat: latLng.lat(), lng: latLng.lng() }));
+    onPolygonDrawn(polygonPaths);
+    setDrawing(false);
+    polygon.setMap(null); // remove the drawn polygon after completion
+  };
 
   return (
-    <div
-      id="map"
-      className="w-full h-96 rounded-lg shadow-lg bg-gray-800"
-    ></div>
+    <LoadScript googleMapsApiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!}>
+      <GoogleMap
+        mapContainerStyle={containerStyle}
+        center={center}
+        zoom={12}
+        onClick={handleMapClick}
+        ref={mapRef}
+      >
+        {areas.map((area, index) => (
+          <Polygon
+            key={index}
+            paths={area.coordinates}
+            options={{
+              fillColor: "lightblue",
+              fillOpacity: 0.4,
+              strokeColor: "blue",
+              strokeOpacity: 0.8,
+              strokeWeight: 2,
+            }}
+          />
+        ))}
+
+        {mode === "draw" && (
+          <google.maps.drawing.DrawingManager
+            options={{
+              drawingControl: false,
+              polygonOptions: {
+                fillColor: "lightblue",
+                fillOpacity: 0.4,
+                strokeColor: "blue",
+                strokeOpacity: 0.8,
+                strokeWeight: 2,
+                editable: true,
+              },
+              drawingMode: google.maps.drawing.OverlayType.POLYGON,
+            }}
+            onPolygonComplete={handlePolygonComplete}
+          />
+        )}
+
+        {mode === "marker" &&
+          paths.map((path, index) => <Marker key={index} position={path} />)}
+      </GoogleMap>
+    </LoadScript>
   );
 };
 
