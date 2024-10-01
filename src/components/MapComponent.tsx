@@ -10,9 +10,9 @@ import { Point } from "ol/geom";
 import { Style, Circle, Fill, Stroke } from "ol/style";
 import { setupMap } from "@/utils/mapSetup";
 import { Area } from "@/types/Area";
-
+type Mode = "browse" | "draw" | "marker";
 interface MapComponentProps {
-  mode: string;
+  mode: Mode;
   onPolygonDrawn: (coordinates: Coordinate[]) => void;
   onMarkerSet: (position: Coordinate, insidePolygon: boolean) => void;
   areas: Area[];
