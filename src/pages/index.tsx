@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import MapComponent from "@/components/MapComponent";
+import MapComponent, { Mode } from "@/components/MapComponent";
 import PolygonControls from "@/components/PolygonControls";
 import MarkerInfo from "@/components/MarkerInfo";
 import ModeToggle from "@/components/ModeToggle";
@@ -12,7 +12,7 @@ const Home: React.FC = () => {
   const [markerPosition, setMarkerPosition] = useState<Coordinate | null>(null);
   const [markerInside, setMarkerInside] = useState<boolean | null>(null);
   const [refreshMap, setRefreshMap] = useState(false);
-  const [mode, setMode] = useState<string>("browse");
+  const [mode, setMode] = useState<Mode>("browse");
 
   const generateUniqueId = () => {
     return `Polygon_${new Date().getTime()}`;

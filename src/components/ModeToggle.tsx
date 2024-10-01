@@ -1,8 +1,9 @@
 import React from "react";
+import { Mode } from "./MapComponent";
 
 interface ModeToggleProps {
   currentMode: string;
-  setMode: (mode: string) => void;
+  setMode: (mode: Mode) => void;
 }
 
 const ModeToggle: React.FC<ModeToggleProps> = ({ currentMode, setMode }) => {
